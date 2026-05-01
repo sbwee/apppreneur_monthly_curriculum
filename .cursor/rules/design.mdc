@@ -1,0 +1,84 @@
+---
+globs: /frontend/
+alwaysApply: false
+---
+
+# Design System & UI Guidelines: Educational Platform
+
+This document outlines the design principles and UI components derived from the provided inspirations, focusing on a modern, data-driven Learning Management System (LMS).
+
+---
+
+## 1. Core Design Philosophy
+The design should balance **high-density information** with **visual clarity**. It must feel professional yet accessible, utilizing a modular "card-based" layout to organize various data types (statistics, courses, schedules, and social elements).
+
+## 2. Color Palettes
+Three distinct themes are supported based on the inspirations:
+
+### A. High-Contrast Dark (Primary Admin/Pro)
+*Inspired by Image 1*
+- **Background:** Deep Charcoal/Black (`#0D0D0D`).
+- **Surface/Cards:** Dark Grey (`#1A1A1A`) with subtle borders.
+- **Primary Accent:** Lime Green (`#D1FF82`) for buttons, active states, and CTAs.
+- **Data Accents:** - Soft Peach (`#F9E4D4`)
+    - Sky Blue (`#C1E1F5`)
+    - Muted Yellow (`#FEF5B8`)
+
+### B. Clean Professional Light (Internal/Enterprise)
+*Inspired by Image 2*
+- **Background:** Soft Grey (`#F7F8FA`).
+- **Primary Accent:** Royal Purple (`#635BFF`).
+- **Typography:** Deep Navy/Charcoal for high readability.
+- **Status Colors:** Green (Published), Blue (Info), Amber (Urgent).
+
+### C. Vibrant Educational (Student Facing)
+*Inspired by Image 3*
+- **Background:** Pure White (`#FFFFFF`) or light cool grey.
+- **Primary Accent:** Vibrant Red/Coral (`#FF5C5C`).
+- **Brand Colors:** Cobalt Blue and Sun Yellow for high-energy backgrounds and marketing sections.
+
+---
+
+## 3. Layout & Grid
+- **Sidebar Navigation:** Fixed-width left sidebar (approx. 240px). Use icons with text labels. Include a bottom section for 'Help' and 'Logout'.
+- **Main Dashboard:** - **Top Row:** Stat summary cards (4-column grid).
+    - **Mid Section:** Activity/Group cards (3-column grid).
+    - **Lower Section:** Large content blocks (2-column grid for 'Courses' or 'Content').
+- **Right Sidebar (Optional):** Dedicated to scheduling, calendars, or user profiles (300px width).
+
+---
+
+## 4. Components
+
+### A. Cards
+- **Style:** Rounded corners (Border-radius: `16px` to `24px`).
+- **Content Padding:** `24px`.
+- **Shadows:** Soft, diffused shadows for light mode; no shadows (just borders) for dark mode.
+- **Interactive Elements:** Include "View Details" arrows or "Start" buttons within the card footer.
+
+### B. Typography
+- **Primary Font:** Sans-serif (e.g., Inter, Montserrat, or Gilroy).
+- **Headings:** Bold, large scale for dashboard titles (e.g., 24pt+).
+- **Secondary Text:** Medium weight, reduced opacity (70-80%) for metadata (e.g., student counts, durations).
+
+### C. Imagery & Media
+- **Course Thumbnails:** 16:9 aspect ratio with rounded corners.
+- **Avatars:** Circular, small (32px-40px) for lists; larger (64px) for profile headers.
+- **Empty States/Decorations:** Use flat, stylized 3D illustrations or isometric icons.
+
+---
+
+## 5. UI Elements & State
+- **Buttons:** - Rounded pill shapes for primary actions.
+    - Ghost buttons (border only) for secondary actions.
+- **Progress Indicators:** - **Donut Charts:** Use for overall statistics.
+    - **Progress Bars:** Thin, horizontal lines within course cards to show completion percentage.
+- **Search Bar:** Centered or top-right, pill-shaped, with a subtle magnifying glass icon.
+
+---
+
+## 6. Interaction Design
+- **Hover States:** Cards should scale slightly (1.02x) or change border color on hover.
+- **Active Navigation:** High-contrast background for the active menu item (e.g., Lime Green on Black).
+- **Responsive Behavior:** - Desktop: Full sidebar + multi-column grid.
+    - Mobile: Bottom navigation bar + single-column vertical stack.
