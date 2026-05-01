@@ -25,16 +25,15 @@ app.use(express.json());
 
 let supabase = null;
 
-// Initialize Supabase only if we have the keys
-// --- TEMPORARY HARDCODE FOR PHASE 0 VERIFICATION ---
-const SUPABASE_URL = process.env.SUPABASE_URL;
-const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+// Get values from .env OR use the hardcoded string as a backup
+const URL = process.env.SUPABASE_URL || "https://gqehyyamxaeaanolbpgu.supabase.co";
+const KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdxZWh5eWFteGFlYWFub2xicGd1Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NzY1MjY0OCwiZXhwIjoyMDkzMjI4NjQ4fQ.Yg_a930LyIhOHbDRn7mxw618Z1BwFs4o5wj_3UghkNE";
 
 try {
-  supabase = createClient(HARDCODED_URL, HARDCODED_KEY);
-  console.log("✅ Supabase client FORCE INITIALIZED (Hardcoded).");
+  supabase = createClient(URL, KEY);
+  console.log("✅ Supabase client initialized (using " + (process.env.SUPABASE_URL ? ".env" : "backup strings") + ").");
 } catch (err) {
-  console.error("❌ Hardcode failed:", err.message);
+  console.error("❌ initialization failed:", err.message);
 }
 // ----------------------------------------------------
 
