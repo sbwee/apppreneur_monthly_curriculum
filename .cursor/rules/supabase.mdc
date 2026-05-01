@@ -1,0 +1,19 @@
+---
+globs: /backend/
+alwaysApply: false
+---
+
+# Supabase & Backend Standards
+
+## Security & Auth
+- **Always use `getUser()`**: Never trust `getSession()` for server-side auth checks to prevent spoofing.
+- **RLS (Row Level Security)**: Every new table MUST have RLS enabled by default to support the "Privacy First" requirement.
+- **Service Role**: Never use the `service_role` key in the frontend; it is for administrative edge functions only[cite: 1].
+
+## Data Integrity
+- **Zod Validation**: Use Zod to validate all AI-generated curriculum data before inserting it into Postgres.
+- **Type Generation**: Run `supabase gen types typescript` after schema changes to ensure the "Adaptive Engine" stays type-safe[cite: 1].
+
+## Database Design (LMS Focus)
+- **Soft Deletes**: Use a `deleted_at` column for resources in the Hub so users can recover accidentally removed links[cite: 2].
+- **Indexes**: Ensure `user_id` columns are indexed for fast retrieval of the "Monthly Curriculum"[cite: 2].

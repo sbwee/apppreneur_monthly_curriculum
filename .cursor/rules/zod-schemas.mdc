@@ -1,0 +1,18 @@
+---
+globs: /backend/
+alwaysApply: false
+---
+
+# Zod Schema & Data Validation Standards
+
+## AI Integration (The Architect)
+- **Mandatory Schemas**: Every AI prompt that generates a "Monthly Curriculum" MUST have a corresponding Zod schema to parse the output.
+- **Strict Parsing**: Use `.parse()` or `.safeParse()` for all LLM responses before updating the "Adaptive Engine" timeline.
+- **Coercion**: Use `z.coerce.date()` when handling the "recalibrated" dates from the AI to ensure JS Date compatibility.
+
+## Domain Logic (The Ledger)
+- **Resource Validation**: Define a `ResourceSchema` that requires a valid URL, a title, and a "Cognitive Weight" (duration).
+- **Syllabus Structure**: The syllabus schema must validate an array of modules, each containing ordered resource IDs[cite: 1].
+
+## Error Handling
+- **Graceful Failures**: If Zod validation fails on an AI response, trigger a retry prompt with the specific validation errors instead of crashing the UI[cite: 1].
