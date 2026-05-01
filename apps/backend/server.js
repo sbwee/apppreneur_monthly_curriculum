@@ -27,7 +27,7 @@ let supabase = null;
 
 // Get values from .env OR use the hardcoded string as a backup
 const URL = process.env.SUPABASE_URL || "https://gqehyyamxaeaanolbpgu.supabase.co";
-const KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdxZWh5eWFteGFlYWFub2xicGd1Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NzY1MjY0OCwiZXhwIjoyMDkzMjI4NjQ4fQ.Yg_a930LyIhOHbDRn7mxw618Z1BwFs4o5wj_3UghkNE";
+const KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || "TEMPORARY_DISABLED_FOR_SAFETY";
 
 try {
   supabase = createClient(URL, KEY);
