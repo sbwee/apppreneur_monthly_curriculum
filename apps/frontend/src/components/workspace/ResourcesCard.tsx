@@ -1,30 +1,140 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { apiFetch } from "@/src/lib/api";
+import { getAccessToken } from "@/src/lib/auth";
+import { createAndEnrichResource, mapApiResource } from "@/src/lib/resourceApi";
+import type { ApiResource } from "@/src/lib/resourceMapper";
+import type { WorkspaceResource } from "@/src/data/mockWorkspace";
+import { ResourceDropzone } from "@/src/components/workspace/ResourceDropzone";
+import { GenerateStructureButton } from "@/src/components/workspace/GenerateStructureButton";
 import {
-  randomResourcePool,
-  WorkspaceResource,
-  workspaceResources,
-} from "@/src/data/mockWorkspace";
+  DEFAULT_SPRINT_DAYS,
+  SprintDurationControl,
+} from "@/src/components/workspace/SprintDurationControl";
 
-export function ResourcesCard() {
-  const [resources, setResources] = useState<WorkspaceResource[]>(workspaceResources);
+type ResourcesCardProps = {
+  curriculumId?: string | null;
+  folderId?: string | null;
+  hasSyllabus?: boolean;
+  isGeneratingStructure?: boolean;
+  onGenerateStructure?: (sprintDays: number) => void;
+  refreshKey?: number;
+};
 
-  function handleAddResource() {
-    const randomTemplate =
-      randomResourcePool[Math.floor(Math.random() * randomResourcePool.length)];
+export function ResourcesCard({
+  curriculumId,
+  folderId,
+  hasSyllabus,
+  isGeneratingStructure,
+  onGenerateStructure,
+  refreshKey = 0,
+}: ResourcesCardProps) {
+  const [resources, setResources] = useState<WorkspaceResource[]>([]);
+  const [isAdding, setIsAdding] = useState(false);
+  const [isLoadingList, setIsLoadingList] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [sprintDays, setSprintDays] = useState(DEFAULT_SPRINT_DAYS);
 
-    const newResource: WorkspaceResource = {
-      ...randomTemplate,
-      id: `${randomTemplate.type.toLowerCase()}-${Date.now()}`,
+  useEffect(() => {
+    if (!curriculumId) {
+      return;
+    }
+
+    let cancelled = false;
+
+    void (async () => {
+      const token = getAccessToken();
+      if (!token) {
+        return;
+      }
+
+      setIsLoadingList(true);
+      setError(null);
+
+      try {
+        const query = folderId ? `?folder_id=${encodeURIComponent(folderId)}` : "";
+        const data = await apiFetch<{ resources: ApiResource[] }>(`/api/resources${query}`, {}, token);
+        if (!cancelled) {
+          setResources(data.resources.map(mapApiResource));
+        }
+      } catch {
+        if (!cancelled) {
+          setResources([]);
+          setError("Could not load resources for this curriculum.");
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoadingList(false);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
     };
+  }, [curriculumId, folderId, refreshKey]);
 
-    setResources((prev) => [newResource, ...prev]);
+  async function handleSubmitUrl(url: string) {
+    if (!curriculumId) {
+      setError("Create or select a curriculum before adding resources.");
+      return;
+    }
+
+    const token = getAccessToken();
+    if (!token) {
+      setError("Sign in to add resources.");
+      return;
+    }
+
+    setError(null);
+    setIsAdding(true);
+
+    try {
+      const resource = await createAndEnrichResource(token, url, folderId ?? null);
+      const mapped = mapApiResource(resource);
+      setResources((prev) => [mapped, ...prev]);
+
+      if (resource.ingest_status === "failed") {
+        setError("Resource saved, but enrichment failed. The link is stored for retry.");
+      }
+    } catch (submitError) {
+      setError(submitError instanceof Error ? submitError.message : "Could not add resource.");
+    } finally {
+      setIsAdding(false);
+    }
+  }
+
+  if (!curriculumId) {
+    return null;
   }
 
   return (
-    <section className="mt-8">
+    <section className="resources-card">
       <h2 className="utility-heading">Resources</h2>
+
+      <ResourceDropzone
+        disabled={!curriculumId}
+        isSubmitting={isAdding}
+        onSubmitUrl={handleSubmitUrl}
+      />
+
+      {error && (
+        <p className="mt-3 text-sm text-[#9A504A]" role="alert">
+          {error}
+        </p>
+      )}
+
+      {isLoadingList && (
+        <p className="mt-4 text-sm text-[var(--color-ink-muted)]">Loading resources…</p>
+      )}
+
+      {!isLoadingList && resources.length === 0 && (
+        <p className="mt-4 text-sm text-[var(--color-ink-muted)]">
+          No resources in this bed yet. Drop your first link above.
+        </p>
+      )}
+
       <div className="mt-4 space-y-3">
         {resources.map((resource) => (
           <article key={resource.id} className="resource-item">
@@ -39,9 +149,20 @@ export function ResourcesCard() {
         ))}
       </div>
 
-      <button type="button" className="add-resource-btn" onClick={handleAddResource}>
-        Add Resource
-      </button>
+      {!hasSyllabus && onGenerateStructure && (
+        <div className="generate-structure-wrap">
+          <SprintDurationControl
+            value={sprintDays}
+            onChange={setSprintDays}
+            disabled={isGeneratingStructure}
+          />
+          <GenerateStructureButton
+            resourceCount={resources.length}
+            isGenerating={isGeneratingStructure}
+            onGenerate={() => onGenerateStructure(sprintDays)}
+          />
+        </div>
+      )}
     </section>
   );
 }

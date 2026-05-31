@@ -66,6 +66,30 @@ describe("createApp", () => {
     assert.equal(res.body.error?.code, "UNAUTHORIZED");
   });
 
+  test("PATCH /api/curricula/:id without auth returns 401", async () => {
+    const app = createApp({
+      frontendUrl: "http://localhost:3000",
+      supabase: { client: null, configured: false },
+      env: {},
+    });
+    const id = "00000000-0000-4000-8000-000000000001";
+    const res = await request(app).patch(`/api/curricula/${id}`).send({ status: "archived" });
+    assert.equal(res.status, 401);
+    assert.equal(res.body.error?.code, "UNAUTHORIZED");
+  });
+
+  test("DELETE /api/curricula/:id without auth returns 401", async () => {
+    const app = createApp({
+      frontendUrl: "http://localhost:3000",
+      supabase: { client: null, configured: false },
+      env: {},
+    });
+    const id = "00000000-0000-4000-8000-000000000001";
+    const res = await request(app).delete(`/api/curricula/${id}`);
+    assert.equal(res.status, 401);
+    assert.equal(res.body.error?.code, "UNAUTHORIZED");
+  });
+
   test("POST /api/curricula/:id/schedule/reslide without auth returns 401", async () => {
     const app = createApp({
       frontendUrl: "http://localhost:3000",
@@ -85,6 +109,28 @@ describe("createApp", () => {
       env: {},
     });
     const res = await request(app).get("/api/notes").query({ resource_id: "00000000-0000-4000-8000-000000000002" });
+    assert.equal(res.status, 401);
+    assert.equal(res.body.error?.code, "UNAUTHORIZED");
+  });
+
+  test("GET /api/profile without auth returns 401", async () => {
+    const app = createApp({
+      frontendUrl: "http://localhost:3000",
+      supabase: { client: null, configured: false },
+      env: {},
+    });
+    const res = await request(app).get("/api/profile");
+    assert.equal(res.status, 401);
+    assert.equal(res.body.error?.code, "UNAUTHORIZED");
+  });
+
+  test("PATCH /api/profile without auth returns 401", async () => {
+    const app = createApp({
+      frontendUrl: "http://localhost:3000",
+      supabase: { client: null, configured: false },
+      env: {},
+    });
+    const res = await request(app).patch("/api/profile").send({ daily_minutes_goal: 30 });
     assert.equal(res.status, 401);
     assert.equal(res.body.error?.code, "UNAUTHORIZED");
   });

@@ -17,6 +17,7 @@ export type BucketItem = {
   description: string;
   meta: string;
   accent: string;
+  status?: "done" | "pending" | "deferred" | "skipped";
 };
 
 export type FeatureBlock = {
@@ -28,53 +29,11 @@ export type FeatureBlock = {
   quoteAuthor?: string;
 };
 
-export const userProfile = {
-  name: "Serra",
-  level: "Lvl 12 Learner",
-};
-
+/** Sidebar nav config (profile data comes from the profile API). */
 export const sidebarItems: SidebarItem[] = [
   { label: "Home", href: "/home", isActive: true },
   { label: "Workspace", href: "/workspace" },
   { label: "Showcase", href: "/showcase" },
-];
-
-export const progressData = {
-  mastery: 75,
-  tracks: [
-    { topic: "Philosophy", value: 82, color: "#446D5D" },
-    { topic: "Digital Arts", value: 50, color: "#B65458" },
-  ] satisfies ProgressTrack[],
-};
-
-export const bucketItems: BucketItem[] = [
-  {
-    id: "video",
-    type: "Video",
-    title: "The Architecture of Silence",
-    description:
-      "An exploration of minimalist spaces and their psychological impact on focus.",
-    meta: "12 mins remaining",
-    accent: "#DCEBE3",
-  },
-  {
-    id: "book",
-    type: "Book",
-    title: "Design as Art",
-    description:
-      "Bruno Munari's classic treatise on functionality and visual beauty.",
-    meta: "Ch. 4 of 12",
-    accent: "#F4E2E2",
-  },
-  {
-    id: "article",
-    type: "Article",
-    title: "The Psychology of Color in Learning",
-    description:
-      "How chroma affects retention and cognitive load in digital environments.",
-    meta: "4 min read",
-    accent: "#F3EAD5",
-  },
 ];
 
 export const featureBlocks: FeatureBlock[] = [

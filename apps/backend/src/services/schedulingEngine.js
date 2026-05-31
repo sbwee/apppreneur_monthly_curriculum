@@ -1,5 +1,30 @@
 const { addCalendarDays, compareIsoDates, formatIsoDateOnly } = require("../lib/calendarDates");
 
+const DEFAULT_SPRINT_DAYS = 30;
+const MIN_SPRINT_DAYS = 7;
+const MAX_SPRINT_DAYS = 90;
+
+/**
+ * Day offsets (0 … sprintDays-1) evenly distributing itemCount assignments.
+ * @param {number} itemCount
+ * @param {number} sprintDays
+ * @returns {number[]}
+ */
+function spreadDayOffsets(itemCount, sprintDays) {
+  const days = Math.max(MIN_SPRINT_DAYS, Math.min(MAX_SPRINT_DAYS, sprintDays));
+  if (itemCount <= 0) {
+    return [];
+  }
+  if (itemCount === 1) {
+    return [0];
+  }
+
+  const lastOffset = days - 1;
+  return Array.from({ length: itemCount }, (_, index) =>
+    Math.round((index * lastOffset) / (itemCount - 1)),
+  );
+}
+
 /**
  * @param {{ week_index: number | null; day_index: number | null; position: number }} item
  * @param {string} startDateIso YYYY-MM-DD anchor (typically curriculum.month_start or explicit)
@@ -23,6 +48,55 @@ function buildBootstrapRows(items, startDateIso) {
     scheduled_date: itemToScheduledDate(it, startDateIso),
     position: Number(it.position) || 0,
   }));
+}
+
+/**
+ * Spread curriculum items evenly across a sprint window (inclusive start day + sprintDays-1 offsets).
+ * @param {Array<{ id: string; position: number }>} items
+ * @param {string} startDateIso
+ * @param {number} sprintDays
+ */
+function buildBootstrapRowsAcrossSprint(items, startDateIso, sprintDays) {
+  const sorted = [...items].sort((a, b) => Number(a.position) - Number(b.position));
+  const offsets = spreadDayOffsets(sorted.length, sprintDays);
+
+  return sorted.map((it, index) => ({
+    curriculum_item_id: String(it.id),
+    scheduled_date: addCalendarDays(startDateIso, offsets[index]),
+    position: Number(it.position) || index,
+  }));
+}
+
+/**
+ * Recompute dates for non-done assignments; preserves completed work in place.
+ * @param {Array<{ id: string; position: number }>} items
+ * @param {Array<{ id: string; curriculum_item_id: string; scheduled_date: string; status: string }>} assignments
+ * @param {string} startDateIso
+ * @param {number} sprintDays
+ * @returns {Array<{ id: string; scheduled_date: string }>}
+ */
+function computeSprintRebalanceUpdates(items, assignments, startDateIso, sprintDays) {
+  const sorted = [...items].sort((a, b) => Number(a.position) - Number(b.position));
+  const offsets = spreadDayOffsets(sorted.length, sprintDays);
+  const assignmentByItemId = new Map(
+    assignments.map((row) => [String(row.curriculum_item_id), row]),
+  );
+
+  const updates = [];
+  for (let index = 0; index < sorted.length; index += 1) {
+    const item = sorted[index];
+    const assignment = assignmentByItemId.get(String(item.id));
+    if (!assignment || assignment.status === "done") {
+      continue;
+    }
+
+    const nextDate = addCalendarDays(startDateIso, offsets[index]);
+    if (assignment.scheduled_date !== nextDate) {
+      updates.push({ id: assignment.id, scheduled_date: nextDate });
+    }
+  }
+
+  return updates;
 }
 
 /**
@@ -77,10 +151,25 @@ function countCompletedInWindow(assignments, window) {
   return n;
 }
 
+function clampSprintDays(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) {
+    return DEFAULT_SPRINT_DAYS;
+  }
+  return Math.max(MIN_SPRINT_DAYS, Math.min(MAX_SPRINT_DAYS, Math.round(n)));
+}
+
 module.exports = {
+  DEFAULT_SPRINT_DAYS,
+  MIN_SPRINT_DAYS,
+  MAX_SPRINT_DAYS,
+  spreadDayOffsets,
   itemToScheduledDate,
   buildBootstrapRows,
+  buildBootstrapRowsAcrossSprint,
+  computeSprintRebalanceUpdates,
   computeReslideUpdates,
   velocityWindow,
   countCompletedInWindow,
+  clampSprintDays,
 };

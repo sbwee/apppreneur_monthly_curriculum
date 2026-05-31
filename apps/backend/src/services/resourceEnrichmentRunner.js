@@ -1,5 +1,6 @@
 const { fetchUrlExcerpt } = require("./resourceFetch");
 const { enrichResourceMetadata } = require("./resourceEnrichment");
+const { isYouTubeUrl, fetchYouTubeOEmbed } = require("./youtubeMetadata");
 
 /**
  * Runs URL fetch + LLM enrichment and persists to `resources` row.
@@ -25,7 +26,9 @@ async function enrichAndPersistResource(sb, env, resourceRow) {
   }
 
   const existing = resourceRow;
-  const fetchResult = await fetchUrlExcerpt(String(existing.url));
+  const url = String(existing.url);
+  const youtubeMeta = isYouTubeUrl(url) ? await fetchYouTubeOEmbed(url) : null;
+  const fetchResult = await fetchUrlExcerpt(url);
 
   let enrichment;
   try {
@@ -66,6 +69,36 @@ async function enrichAndPersistResource(sb, env, resourceRow) {
   }
 
   if (!enrichment.ok) {
+    if (youtubeMeta?.title) {
+      const metadata = {
+        ...(existing.metadata && typeof existing.metadata === "object" ? existing.metadata : {}),
+        ai: {
+          title: youtubeMeta.title,
+          summary: youtubeMeta.author ? `By ${youtubeMeta.author}` : "YouTube video",
+          content_kind: "video",
+          source: "youtube_oembed",
+          enriched_at: new Date().toISOString(),
+        },
+      };
+      const { data, error } = await sb
+        .from("resources")
+        .update({
+          title: youtubeMeta.title,
+          description: youtubeMeta.author ? `By ${youtubeMeta.author}` : "YouTube video",
+          kind: "youtube",
+          metadata,
+          ingest_status: "enriched",
+        })
+        .eq("id", existing.id)
+        .select("*")
+        .single();
+
+      if (error) {
+        return { ok: false, resource: existing, error: error.message };
+      }
+      return { ok: true, resource: data ?? existing };
+    }
+
     const metadata = {
       ...(existing.metadata && typeof existing.metadata === "object" ? existing.metadata : {}),
       ai: {
@@ -87,10 +120,15 @@ async function enrichAndPersistResource(sb, env, resourceRow) {
   }
 
   const ai = enrichment.data;
+  const resolvedTitle = youtubeMeta?.title || ai.title;
+  const resolvedKind = isYouTubeUrl(url) ? "youtube" : String(existing.kind || "other");
   const metadata = {
     ...(existing.metadata && typeof existing.metadata === "object" ? existing.metadata : {}),
     ai: {
       ...ai,
+      title: resolvedTitle,
+      content_kind: isYouTubeUrl(url) ? "video" : ai.content_kind,
+      youtube: youtubeMeta,
       enriched_at: new Date().toISOString(),
       fetch: {
         content_type: fetchResult.contentType,
@@ -102,8 +140,9 @@ async function enrichAndPersistResource(sb, env, resourceRow) {
   const { data, error } = await sb
     .from("resources")
     .update({
-      title: ai.title,
+      title: resolvedTitle,
       description: ai.summary,
+      kind: resolvedKind,
       metadata,
       ingest_status: "enriched",
     })

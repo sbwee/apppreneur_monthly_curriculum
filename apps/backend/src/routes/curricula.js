@@ -7,6 +7,8 @@ const { syllabusPayloadV1Schema } = require("../schemas/syllabusPayload");
 const { enrichAndPersistResource } = require("../services/resourceEnrichmentRunner");
 const { generateFullSyllabusWithLlm, patchSyllabusWithNewResources } = require("../services/syllabusLlm");
 const { persistSyllabusVersionAndItems } = require("../services/syllabusPersist");
+const { clampSprintDays, computeSprintRebalanceUpdates } = require("../services/schedulingEngine");
+const { formatIsoDateOnly } = require("../lib/calendarDates");
 const { registerCurriculumScheduleRoutes } = require("./curriculaSchedule");
 const { registerCurriculumPublishRoutes } = require("./curriculaPublish");
 const { llmBodyBudgetMiddleware, sharedLlmUserLimiter } = require("../middleware/rateLimits");
@@ -40,8 +42,26 @@ const patchSyllabusBodySchema = z.object({
 const regenerateBodySchema = z
   .object({
     auto_enrich: z.boolean().optional(),
+    sprint_days: z.number().int().min(7).max(90).optional(),
   })
   .strict();
+
+const draftCurriculumSchema = z
+  .object({
+    title: z.string().trim().min(1).max(300),
+    month_start: z.union([z.string().regex(/^\d{4}-\d{2}-\d{2}$/), z.null()]).optional(),
+  })
+  .strict();
+
+const patchCurriculumSchema = z
+  .object({
+    status: z.enum(["draft", "active", "archived"]).optional(),
+    sprint_days: z.number().int().min(7).max(90).optional(),
+  })
+  .strict()
+  .refine((body) => body.status !== undefined || body.sprint_days !== undefined, {
+    message: "Provide at least one of status or sprint_days.",
+  });
 
 /**
  * @param {import("@supabase/supabase-js").SupabaseClient} sb
@@ -99,6 +119,71 @@ function assertLlmConfigured(env) {
   }
 }
 
+function utcTodayIsoDate() {
+  return formatIsoDateOnly(new Date());
+}
+
+function resolveSprintStartDate(curriculum, assignments) {
+  if (curriculum.month_start) {
+    return String(curriculum.month_start);
+  }
+  const dates = (assignments ?? []).map((row) => row.scheduled_date).filter(Boolean).sort();
+  if (dates.length) {
+    return dates[0];
+  }
+  return utcTodayIsoDate();
+}
+
+/**
+ * @param {import("@supabase/supabase-js").SupabaseClient} sb
+ * @param {string} curriculumId
+ * @param {Record<string, unknown>} curriculum
+ * @param {number} sprintDays
+ */
+async function rebalanceScheduleForSprintDays(sb, curriculumId, curriculum, sprintDays) {
+  const { data: items, error: iErr } = await sb
+    .from("curriculum_items")
+    .select("id, position")
+    .eq("curriculum_id", curriculumId)
+    .order("position", { ascending: true });
+
+  if (iErr) {
+    throw new AppError(500, "DB_ERROR", iErr.message);
+  }
+  if (!items?.length) {
+    return 0;
+  }
+
+  const { data: rows, error: sErr } = await sb
+    .from("schedule_assignments")
+    .select("id, curriculum_item_id, scheduled_date, status")
+    .eq("curriculum_id", curriculumId);
+
+  if (sErr) {
+    throw new AppError(500, "DB_ERROR", sErr.message);
+  }
+  if (!rows?.length) {
+    return 0;
+  }
+
+  const startDate = resolveSprintStartDate(curriculum, rows);
+  const updates = computeSprintRebalanceUpdates(items, rows, startDate, sprintDays);
+
+  for (const update of updates) {
+    const { error: uErr } = await sb
+      .from("schedule_assignments")
+      .update({ scheduled_date: update.scheduled_date })
+      .eq("id", update.id)
+      .eq("curriculum_id", curriculumId);
+
+    if (uErr) {
+      throw new AppError(500, "DB_ERROR", uErr.message);
+    }
+  }
+
+  return updates.length;
+}
+
 function assertPayloadMatchesInputResources(payload, resources) {
   const input = new Set(resources.map((r) => String(r.id)));
   const src = new Set(payload.source_resource_ids);
@@ -123,6 +208,51 @@ function createCurriculaRouter() {
         throw new AppError(500, "DB_ERROR", error.message);
       }
       res.json({ curricula: data ?? [] });
+    }),
+  );
+
+  router.post(
+    "/draft",
+    asyncHandler(async (req, res) => {
+      const parsed = draftCurriculumSchema.safeParse(req.body);
+      if (!parsed.success) {
+        throw new AppError(400, "VALIDATION_ERROR", "Invalid body.", {
+          issues: parsed.error.flatten(),
+        });
+      }
+
+      const sb = req.auth.supabase;
+      const userId = req.auth.user.id;
+      const body = parsed.data;
+
+      const { data: folder, error: folderErr } = await sb
+        .from("folders")
+        .insert({ user_id: userId, name: body.title })
+        .select("*")
+        .single();
+
+      if (folderErr) {
+        throw new AppError(500, "DB_ERROR", folderErr.message);
+      }
+
+      const { data: curriculum, error: curriculumErr } = await sb
+        .from("curricula")
+        .insert({
+          user_id: userId,
+          title: body.title,
+          folder_id: folder.id,
+          month_start: body.month_start ?? null,
+          status: "draft",
+        })
+        .select("*")
+        .single();
+
+      if (curriculumErr) {
+        await sb.from("folders").delete().eq("id", folder.id);
+        throw new AppError(500, "DB_ERROR", curriculumErr.message);
+      }
+
+      res.status(201).json({ curriculum, folder });
     }),
   );
 
@@ -390,12 +520,26 @@ function createCurriculaRouter() {
         resources = await autoEnrichResources(sb, resources, env);
       }
 
+      const sprintDays = clampSprintDays(body.data.sprint_days ?? curriculum.sprint_days ?? 30);
+
+      if (sprintDays !== curriculum.sprint_days) {
+        const { error: sprintErr } = await sb
+          .from("curricula")
+          .update({ sprint_days: sprintDays })
+          .eq("id", curriculumId);
+        if (sprintErr) {
+          throw new AppError(500, "DB_ERROR", sprintErr.message);
+        }
+        curriculum.sprint_days = sprintDays;
+      }
+
       let gen;
       try {
         gen = await generateFullSyllabusWithLlm({
           ...llmSyllabusCallOpts(env),
           curriculumTitle: String(curriculum.title),
           monthStart: curriculum.month_start ?? null,
+          sprintDays,
           resources,
         });
       } catch (err) {
@@ -423,6 +567,87 @@ function createCurriculaRouter() {
 
   registerCurriculumPublishRoutes(router);
   registerCurriculumScheduleRoutes(router);
+
+  router.patch(
+    "/:id",
+    asyncHandler(async (req, res) => {
+      if (!isUuid(req.params.id)) {
+        throw new AppError(400, "VALIDATION_ERROR", "Invalid curriculum id.");
+      }
+
+      const parsed = patchCurriculumSchema.safeParse(req.body);
+      if (!parsed.success) {
+        throw new AppError(400, "VALIDATION_ERROR", "Invalid body.", {
+          issues: parsed.error.flatten(),
+        });
+      }
+
+      const sb = req.auth.supabase;
+      const curriculumId = req.params.id;
+
+      const { data: existing, error: lErr } = await sb
+        .from("curricula")
+        .select("*")
+        .eq("id", curriculumId)
+        .maybeSingle();
+
+      if (lErr) {
+        throw new AppError(500, "DB_ERROR", lErr.message);
+      }
+      if (!existing) {
+        throw new AppError(404, "NOT_FOUND", "Curriculum not found.");
+      }
+
+      const patch = { ...parsed.data };
+      if (patch.sprint_days != null) {
+        patch.sprint_days = clampSprintDays(patch.sprint_days);
+      }
+
+      const { data, error } = await sb
+        .from("curricula")
+        .update(patch)
+        .eq("id", curriculumId)
+        .select("*")
+        .single();
+
+      if (error) {
+        throw new AppError(500, "DB_ERROR", error.message);
+      }
+
+      let rebalanced = 0;
+      if (parsed.data.sprint_days != null) {
+        rebalanced = await rebalanceScheduleForSprintDays(sb, curriculumId, data, data.sprint_days);
+      }
+
+      res.json({ curriculum: data, schedule_rebalanced: rebalanced });
+    }),
+  );
+
+  router.delete(
+    "/:id",
+    asyncHandler(async (req, res) => {
+      if (!isUuid(req.params.id)) {
+        throw new AppError(400, "VALIDATION_ERROR", "Invalid curriculum id.");
+      }
+
+      const sb = req.auth.supabase;
+      const curriculumId = req.params.id;
+
+      const { error, count } = await sb
+        .from("curricula")
+        .delete({ count: "exact" })
+        .eq("id", curriculumId);
+
+      if (error) {
+        throw new AppError(500, "DB_ERROR", error.message);
+      }
+      if (count == null || count === 0) {
+        throw new AppError(404, "NOT_FOUND", "Curriculum not found.");
+      }
+
+      res.status(204).send();
+    }),
+  );
 
   router.get(
     "/:id",

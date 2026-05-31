@@ -1,5 +1,9 @@
 const { OpenAI } = require("openai");
-const { SYLLABUS_SCHEMA_VERSION, syllabusPayloadV1Schema } = require("../schemas/syllabusPayload");
+const {
+  SYLLABUS_SCHEMA_VERSION,
+  syllabusPayloadV1Schema,
+  normalizeLlmSyllabusJson,
+} = require("../schemas/syllabusPayload");
 
 /**
  * @param {{ apiKey: string; timeoutMs?: number; maxRetries?: number }} input
@@ -46,6 +50,7 @@ function summarizeResourcesForPrompt(resources) {
  *   model: string;
  *   curriculumTitle: string;
  *   monthStart?: string | null;
+ *   sprintDays?: number;
  *   resources: Record<string, unknown>[];
  *   timeoutMs?: number;
  *   maxRetries?: number;
@@ -60,28 +65,36 @@ async function generateFullSyllabusWithLlm(input) {
   });
   const catalog = summarizeResourcesForPrompt(input.resources);
 
+  const sprintDays = Number.isFinite(input.sprintDays) ? input.sprintDays : 30;
+  const sprintWeeks = Math.max(1, Math.ceil(sprintDays / 7));
+  const maxWeekIndex = sprintWeeks - 1;
+
   const system = [
-    "You design a 4-week (28-day style) personal learning syllabus from a set of saved web resources.",
+    `You are an expert curriculum architect designing a comprehensive, deeply educational ${sprintDays}-day personal learning syllabus.`,
+    "The provided resources are your CORE FOUNDATION — not a summary checklist. Use each resource as an anchor, then expand the plan with advanced subtopics, frameworks, mental models, and deep-dive conceptual modules drawn from your training knowledge.",
+    `Deliver a rich plan spread across ${sprintDays} calendar days (${sprintWeeks} week(s)): foundations → applied practice → synthesis → mastery checkpoints.`,
     "Return ONLY valid JSON (no markdown) with this shape:",
     `{`,
     `  "schema": "${SYLLABUS_SCHEMA_VERSION}",`,
-    `  "overview": string,`,
+    `  "overview": string, // comprehensive curriculum narrative: themes, arc, and how the sprint builds`,
     `  "source_resource_ids": string[], // must list EVERY input resource id exactly once`,
     `  "items": [`,
     `    {`,
     `      "resource_id": string (uuid),`,
-    `      "week_index": 0-3,`,
+    `      "week_index": 0-${maxWeekIndex},`,
     `      "day_index": 0-6 (0=Monday convention is fine; stay consistent),`,
-    `      "sequence": integer starting at 0, unique, total order across the month,`,
+    `      "sequence": integer starting at 0, unique, total order across the sprint,`,
     `      "consumption_minutes": integer or null,`,
     `      "practice_minutes": integer or null,`,
-    `      "rationale": string (why this ordering / week placement / cognitive load),`,
+    `      "rationale": string (detailed: learning objectives for this slot, why this ordering, cognitive load, advanced subtopics to explore, and deep tasks the learner should perform — not a one-line summary),`,
     `    }`,
     `  ],`,
-    `  "gap_suggestions": up to 2 objects: { "title", "rationale", "suggested_search_query" } for missing concepts.`,
+    `  "gap_suggestions": up to 2 objects: { "title", "rationale", "suggested_search_query" } for missing concepts that would strengthen the curriculum.`,
     `}`,
     "Rules:",
     "- Use every input resource exactly once across items.",
+    "- Do NOT merely summarize resources — architect a full learning journey around them with added conceptual depth.",
+    "- Each rationale must include concrete learning objectives and at least one deep practice or synthesis task.",
     "- Spread workload; heavier items should pair with lighter adjacent days when possible.",
     "- consumption_minutes / practice_minutes should reflect realistic time; use null if unknown.",
     "- gap_suggestions must be short and actionable; 0-2 entries only.",
@@ -89,6 +102,7 @@ async function generateFullSyllabusWithLlm(input) {
 
   const user = [
     `Curriculum title: ${input.curriculumTitle}`,
+    `Learning sprint length: ${sprintDays} days.`,
     input.monthStart ? `Month anchor (YYYY-MM-DD): ${input.monthStart}` : "Month anchor: not specified.",
     "Resources JSON:",
     JSON.stringify(catalog, null, 2),
@@ -121,7 +135,7 @@ async function generateFullSyllabusWithLlm(input) {
     return { ok: false, error: "Model output was not valid JSON." };
   }
 
-  const parsed = syllabusPayloadV1Schema.safeParse(json);
+  const parsed = syllabusPayloadV1Schema.safeParse(normalizeLlmSyllabusJson(json));
   if (!parsed.success) {
     return { ok: false, error: parsed.error.message };
   }
@@ -150,6 +164,7 @@ async function patchSyllabusWithNewResources(input) {
 
   const system = [
     "You revise an existing 4-week syllabus when new resources are added.",
+    "Treat provided resources as the core foundation and expand with advanced subtopics, frameworks, and deep-dive modules from your knowledge — do not merely summarize.",
     "Return ONLY valid JSON with the SAME shape as before:",
     `{ "schema": "${SYLLABUS_SCHEMA_VERSION}", "overview", "source_resource_ids", "items", "gap_suggestions" }`,
     "Rules:",
@@ -194,7 +209,7 @@ async function patchSyllabusWithNewResources(input) {
     return { ok: false, error: "Model output was not valid JSON." };
   }
 
-  const parsed = syllabusPayloadV1Schema.safeParse(json);
+  const parsed = syllabusPayloadV1Schema.safeParse(normalizeLlmSyllabusJson(json));
   if (!parsed.success) {
     return { ok: false, error: parsed.error.message };
   }

@@ -1,22 +1,15 @@
-type HeaderProps = {
-  searchPlaceholder?: string;
-};
+import Link from "next/link";
 
-export function Header({ searchPlaceholder = "Search your ledger..." }: HeaderProps) {
+export function Header() {
   return (
     <header className="home-header">
-      <div className="search-shell">
-        <span aria-hidden="true">⌕</span>
-        <input type="search" placeholder={searchPlaceholder} aria-label="Search your ledger" />
-      </div>
-
       <div className="flex items-center gap-3">
         <button type="button" className="icon-btn" aria-label="Notifications">
           ♡
         </button>
-        <button type="button" className="icon-btn icon-btn-profile" aria-label="Profile settings">
+        <Link href="/settings" className="icon-btn icon-btn-profile" aria-label="Profile settings">
           ☺
-        </button>
+        </Link>
       </div>
     </header>
   );

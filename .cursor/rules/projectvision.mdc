@@ -1,3 +1,27 @@
 ---
 alwaysApply: true
 ---
+# PROJECT CORE VISION: THE ADAPTIVE LEARNING LEDGER
+
+## 🎯 Product North Star
+Transform fragmented, saved learning resources into structured, AI-optimized monthly curriculums that double as a shareable "Proof-of-Work" portfolio for career growth.
+
+## 🏗️ Structural Architecture (Monorepo)
+- **Root Directory:** Contains project documentation (`PRD.md`, `Roadmap.md`) and global configs.
+- **Frontend Path:** `/apps/frontend` (Next.js, Tailwind CSS, Lucide-React). Handles the UI, Dashboard, and Public Portfolio views.
+- **Backend Path:** `/apps/backend` (Node.js/Express). Handles custom AI syllabus generation logic, resource metadata extraction, and Supabase admin operations.
+- **Database:** Supabase (PostgreSQL) with Row Level Security (RLS) enabled.
+
+## 🛠️ Key Feature Logic
+- **Adaptive Scheduling:** If a user marks a task as incomplete for the day, the engine must automatically shift the remaining "Sprint Items" forward.
+- **Privacy-First:** All data is `private` by default. Public visibility is an opt-in "Publish" action that creates a read-only showcase.
+- **Resource Parsing:** Support diverse inputs including YouTube URLs, Podcast links (Spotify/Apple), Research PDFs, and Substack newsletters.
+
+## 🎨 UI/UX Principles
+- **High-Signal:** Minimalist aesthetic focused on "Deep Work." Avoid social-media-style distractions.
+- **Dopamine Loops:** Prioritize visual progress tracking (percentage bars, streaks) and "Anti-Guilt" rescheduling messaging.
+
+## 🤖 AI Interaction Guidelines
+- Refer to `Roadmap.md` for current Phase goals before suggesting new code.
+- Always use **Structured Outputs** (JSON schemas) for AI-generated syllabi to ensure the Frontend can parse them reliably.
+- When adding new resources, the AI should suggest where they fit in the *existing* 4-week timeline rather than rebuilding the whole plan.

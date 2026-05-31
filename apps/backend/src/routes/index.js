@@ -7,6 +7,7 @@ const { createResourcesRouter } = require("./resources");
 const { createCurriculaRouter } = require("./curricula");
 const { createScheduleAssignmentPatchRouter } = require("./scheduleAssignments");
 const { createNotesRouter } = require("./notes");
+const { createProfileRouter } = require("./profile");
 const { createPublicShowcaseHandler } = require("./showcasePublic");
 const {
   createApiGeneralLimiter,
@@ -43,6 +44,7 @@ function createApiRouter(ctx) {
   router.use("/curricula", requireAuth, idempotencyMiddleware, createCurriculaRouter());
   router.use("/schedule-assignments", requireAuth, idempotencyMiddleware, createScheduleAssignmentPatchRouter());
   router.use("/notes", requireAuth, idempotencyMiddleware, createNotesRouter());
+  router.use("/profile", requireAuth, idempotencyMiddleware, createProfileRouter());
 
   return router;
 }

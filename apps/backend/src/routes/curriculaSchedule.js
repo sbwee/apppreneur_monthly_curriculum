@@ -4,14 +4,24 @@ const { AppError } = require("../lib/errors");
 const { isUuid } = require("../lib/uuid");
 const { formatIsoDateOnly } = require("../lib/calendarDates");
 const {
-  buildBootstrapRows,
+  buildBootstrapRowsAcrossSprint,
   computeReslideUpdates,
+  computeSprintRebalanceUpdates,
+  clampSprintDays,
   velocityWindow,
   countCompletedInWindow,
 } = require("../services/schedulingEngine");
 
 const bootstrapBodySchema = z
   .object({
+    start_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+    sprint_days: z.number().int().min(7).max(90).optional(),
+  })
+  .strict();
+
+const rebalanceBodySchema = z
+  .object({
+    sprint_days: z.number().int().min(7).max(90).optional(),
     start_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   })
   .strict();
@@ -36,6 +46,20 @@ const velocitySnapshotBodySchema = z
 
 function utcTodayIsoDate() {
   return formatIsoDateOnly(new Date());
+}
+
+function resolveSprintStartDate(curriculum, assignments, explicitStart) {
+  if (explicitStart) {
+    return explicitStart;
+  }
+  if (curriculum.month_start) {
+    return String(curriculum.month_start);
+  }
+  const dates = (assignments ?? []).map((row) => row.scheduled_date).filter(Boolean).sort();
+  if (dates.length) {
+    return dates[0];
+  }
+  return utcTodayIsoDate();
 }
 
 /**
@@ -112,7 +136,19 @@ function registerCurriculumScheduleRoutes(router) {
         parsed.data.start_date ??
         (curriculum.month_start ? String(curriculum.month_start) : utcTodayIsoDate());
 
-      const built = buildBootstrapRows(items, startDate);
+      const sprintDays = clampSprintDays(parsed.data.sprint_days ?? curriculum.sprint_days ?? 30);
+
+      if (parsed.data.sprint_days != null && sprintDays !== curriculum.sprint_days) {
+        const { error: sprintErr } = await sb
+          .from("curricula")
+          .update({ sprint_days: sprintDays })
+          .eq("id", curriculumId);
+        if (sprintErr) {
+          throw new AppError(500, "DB_ERROR", sprintErr.message);
+        }
+      }
+
+      const built = buildBootstrapRowsAcrossSprint(items, startDate, sprintDays);
       const rows = built.map((r) => ({
         curriculum_id: curriculumId,
         curriculum_item_id: r.curriculum_item_id,
@@ -271,6 +307,96 @@ function registerCurriculumScheduleRoutes(router) {
       }
 
       res.json({ updated: updates.length, shift_days: shiftDays });
+    }),
+  );
+
+  router.post(
+    "/:id/schedule/rebalance",
+    asyncHandler(async (req, res) => {
+      if (!isUuid(req.params.id)) {
+        throw new AppError(400, "VALIDATION_ERROR", "Invalid curriculum id.");
+      }
+
+      const parsed = rebalanceBodySchema.safeParse(req.body ?? {});
+      if (!parsed.success) {
+        throw new AppError(400, "VALIDATION_ERROR", "Invalid body.", {
+          issues: parsed.error.flatten(),
+        });
+      }
+
+      const curriculumId = req.params.id;
+      const sb = req.auth.supabase;
+
+      const { data: curriculum, error: cErr } = await sb
+        .from("curricula")
+        .select("*")
+        .eq("id", curriculumId)
+        .maybeSingle();
+
+      if (cErr) {
+        throw new AppError(500, "DB_ERROR", cErr.message);
+      }
+      if (!curriculum) {
+        throw new AppError(404, "NOT_FOUND", "Curriculum not found.");
+      }
+
+      const sprintDays = clampSprintDays(parsed.data.sprint_days ?? curriculum.sprint_days ?? 30);
+
+      if (sprintDays !== curriculum.sprint_days) {
+        const { error: sprintErr } = await sb
+          .from("curricula")
+          .update({ sprint_days: sprintDays })
+          .eq("id", curriculumId);
+        if (sprintErr) {
+          throw new AppError(500, "DB_ERROR", sprintErr.message);
+        }
+      }
+
+      const { data: items, error: iErr } = await sb
+        .from("curriculum_items")
+        .select("id, position")
+        .eq("curriculum_id", curriculumId)
+        .order("position", { ascending: true });
+
+      if (iErr) {
+        throw new AppError(500, "DB_ERROR", iErr.message);
+      }
+      if (!items?.length) {
+        throw new AppError(400, "NO_ITEMS", "Add a syllabus before rebalancing the schedule.");
+      }
+
+      const { data: rows, error: sErr } = await sb
+        .from("schedule_assignments")
+        .select("id, curriculum_item_id, scheduled_date, status")
+        .eq("curriculum_id", curriculumId);
+
+      if (sErr) {
+        throw new AppError(500, "DB_ERROR", sErr.message);
+      }
+      if (!rows?.length) {
+        throw new AppError(400, "NO_SCHEDULE", "Bootstrap a schedule before rebalancing.");
+      }
+
+      const startDate = resolveSprintStartDate(curriculum, rows, parsed.data.start_date);
+      const updates = computeSprintRebalanceUpdates(items, rows, startDate, sprintDays);
+
+      for (const update of updates) {
+        const { error: uErr } = await sb
+          .from("schedule_assignments")
+          .update({ scheduled_date: update.scheduled_date })
+          .eq("id", update.id)
+          .eq("curriculum_id", curriculumId);
+
+        if (uErr) {
+          throw new AppError(500, "DB_ERROR", uErr.message);
+        }
+      }
+
+      res.json({
+        updated: updates.length,
+        sprint_days: sprintDays,
+        start_date: startDate,
+      });
     }),
   );
 
