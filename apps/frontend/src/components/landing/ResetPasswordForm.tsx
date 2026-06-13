@@ -111,7 +111,7 @@ export function ResetPasswordForm() {
   if (resetState === "config") {
     return (
       <section className="w-full max-w-[430px]">
-        <h1 className="brand-mark text-5xl">Learning Ledger</h1>
+        <h1 className="brand-mark text-5xl">Curio</h1>
         <p className="auth-feedback auth-feedback-invalid mt-8">
           Supabase is not configured. Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY.
         </p>
@@ -122,7 +122,7 @@ export function ResetPasswordForm() {
   if (resetState === "invalid") {
     return (
       <section className="w-full max-w-[430px]">
-        <h1 className="brand-mark text-5xl">Learning Ledger</h1>
+        <h1 className="brand-mark text-5xl">Curio</h1>
         <div className="mt-16">
           <h2 className="font-serif text-5xl leading-tight text-[var(--color-brand-forest)]">
             This reset link is invalid or expired
@@ -140,7 +140,7 @@ export function ResetPasswordForm() {
 
   return (
     <section className="w-full max-w-[430px]">
-      <h1 className="brand-mark text-5xl">Learning Ledger</h1>
+      <h1 className="brand-mark text-5xl">Curio</h1>
 
       <div className="mt-16">
         <h2 className="font-serif text-5xl leading-tight text-[var(--color-brand-forest)]">

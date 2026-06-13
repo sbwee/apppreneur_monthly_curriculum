@@ -8,6 +8,7 @@ import { SectionsCard } from "@/src/components/workspace/SectionsCard";
 import { SprintDurationSettings } from "@/src/components/workspace/SprintDurationSettings";
 import { WorkspaceProgressCard } from "@/src/components/workspace/WorkspaceProgressCard";
 import type { PublishSettings, SectionDetail } from "@/src/lib/workspaceApi";
+import type { ScheduleAssignment } from "@/src/lib/scheduleApi";
 
 type UtilityPanelProps = {
   curriculumId?: string | null;
@@ -19,6 +20,7 @@ type UtilityPanelProps = {
   sections?: SectionDetail[];
   selectedSectionId?: string | null;
   onSectionSelect?: (sectionId: string) => void;
+  onAssignmentsChange?: (assignments: ScheduleAssignment[]) => void;
   onSprintDaysUpdated?: (sprintDays: number) => void;
 };
 
@@ -32,6 +34,7 @@ export function UtilityPanel({
   sections,
   selectedSectionId,
   onSectionSelect,
+  onAssignmentsChange,
   onSprintDaysUpdated,
 }: UtilityPanelProps) {
   const [progressRefreshKey, setProgressRefreshKey] = useState(0);
@@ -42,14 +45,8 @@ export function UtilityPanel({
 
   return (
     <aside className="workspace-share-sidebar">
-      <div className="workspace-utility-stack">
-        <PublishPanel
-          curriculumId={curriculumId}
-          curriculumTitle={curriculumTitle}
-          onPublishChange={onPublishChange}
-        />
-
-        {curriculumId && (
+      <div className="flex flex-col space-y-6">
+        {curriculumId ? (
           <>
             <WorkspaceProgressCard
               curriculumId={curriculumId}
@@ -57,6 +54,28 @@ export function UtilityPanel({
               hasSyllabus={hasSyllabus}
               refreshKey={scheduleRefreshKey + progressRefreshKey}
             />
+
+            <ScheduleCard
+              curriculumId={curriculumId}
+              hasSyllabus={hasSyllabus}
+              scheduleRefreshKey={scheduleRefreshKey}
+              onScheduleUpdated={handleScheduleUpdated}
+              onAssignmentsChange={onAssignmentsChange}
+            />
+
+            <SectionsCard
+              sections={sections ?? []}
+              selectedSectionId={selectedSectionId}
+              onSectionSelect={onSectionSelect}
+            />
+
+            <PublishPanel
+              curriculumId={curriculumId}
+              curriculumTitle={curriculumTitle}
+              onPublishChange={onPublishChange}
+            />
+
+            <DailyGoalSettings />
 
             {hasSyllabus && (
               <SprintDurationSettings
@@ -67,22 +86,13 @@ export function UtilityPanel({
                 onScheduleRebalanced={handleScheduleUpdated}
               />
             )}
-
-            <SectionsCard
-              sections={sections ?? []}
-              selectedSectionId={selectedSectionId}
-              onSectionSelect={onSectionSelect}
-            />
-
-            <ScheduleCard
-              curriculumId={curriculumId}
-              hasSyllabus={hasSyllabus}
-              scheduleRefreshKey={scheduleRefreshKey}
-              onScheduleUpdated={handleScheduleUpdated}
-            />
-
-            <DailyGoalSettings />
           </>
+        ) : (
+          <PublishPanel
+            curriculumId={curriculumId}
+            curriculumTitle={curriculumTitle}
+            onPublishChange={onPublishChange}
+          />
         )}
       </div>
     </aside>

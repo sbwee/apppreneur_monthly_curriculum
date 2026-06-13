@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import type { ShowcasePayload } from "@/src/lib/showcaseApi";
 import { mapShowcasePayload } from "@/src/lib/showcaseMapper";
 
-const SITE_NAME = "Learning Ledger";
+const SITE_NAME = "Curio";
 const DESCRIPTION_MAX = 200;
 
 function resolveSiteOrigin(): string {
@@ -22,7 +22,7 @@ function resolveSiteOrigin(): string {
 export function truncateShowcaseDescription(text: string, maxLength = DESCRIPTION_MAX): string {
   const cleaned = text.replace(/\s+/g, " ").trim();
   if (!cleaned) {
-    return "A structured learning portfolio curated in Learning Ledger.";
+    return "A structured learning portfolio curated in Curio.";
   }
   if (cleaned.length <= maxLength) {
     return cleaned;
@@ -92,7 +92,7 @@ export function buildShowcaseNotFoundMetadata(): Metadata {
 
 export function buildShowcaseFallbackMetadata(): Metadata {
   const title = `Learning Showcase | ${SITE_NAME}`;
-  const description = "Explore a structured learning portfolio on Learning Ledger.";
+  const description = "Explore a structured learning portfolio on Curio.";
 
   return {
     title,

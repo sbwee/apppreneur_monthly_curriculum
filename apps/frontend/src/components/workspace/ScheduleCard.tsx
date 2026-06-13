@@ -1,6 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Calendar } from "lucide-react";
+import { PanelHeading } from "@/src/components/ui/workspaceIcons";
 import { ApiRequestError } from "@/src/lib/api";
 import { getAccessToken } from "@/src/lib/auth";
 import { resourceTitle } from "@/src/lib/resourceMapper";
@@ -9,10 +11,10 @@ import {
   bootstrapSchedule,
   dismissReslidePrompt,
   fetchScheduleRange,
+  fullScheduleFetchRange,
   isReslidePromptDismissed,
   localTodayIso,
   reslideMissedSchedule,
-  scheduleFetchRange,
   summarizeMissedSchedule,
   updateScheduleAssignment,
   weekRangeFrom,
@@ -27,6 +29,8 @@ type ScheduleCardProps = {
   /** Bump after syllabus generation to refetch assignments. */
   scheduleRefreshKey?: number;
   onScheduleUpdated?: () => void;
+  /** Full fetched assignment window (for current-article queue sync). */
+  onAssignmentsChange?: (assignments: ScheduleAssignment[]) => void;
 };
 
 const STATUS_LABELS: Record<ScheduleAssignmentStatus, string> = {
@@ -188,8 +192,10 @@ export function ScheduleCard({
   hasSyllabus,
   scheduleRefreshKey = 0,
   onScheduleUpdated,
+  onAssignmentsChange,
 }: ScheduleCardProps) {
   const [assignments, setAssignments] = useState<ScheduleAssignment[]>([]);
+  const allAssignmentsRef = useRef<ScheduleAssignment[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isBootstrapping, setIsBootstrapping] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -214,7 +220,7 @@ export function ScheduleCard({
     }
 
     const { from: weekStart, to: weekEnd } = weekRangeFrom();
-    const { from: fetchFrom, to: fetchTo } = scheduleFetchRange();
+    const { from: fetchFrom, to: fetchTo } = fullScheduleFetchRange();
     setIsLoading(true);
     setLoadError(null);
     setReslideSuccess(null);
@@ -225,6 +231,8 @@ export function ScheduleCard({
         (row) => row.scheduled_date >= weekStart && row.scheduled_date <= weekEnd,
       );
       setAssignments(weekRows);
+      allAssignmentsRef.current = rows;
+      onAssignmentsChange?.(rows);
 
       const summary = summarizeMissedSchedule(rows, weekStart);
       if (summary && !isReslidePromptDismissed(curriculumId, weekStart)) {
@@ -236,11 +244,13 @@ export function ScheduleCard({
       }
     } catch (error) {
       setAssignments([]);
+      allAssignmentsRef.current = [];
+      onAssignmentsChange?.([]);
       setLoadError(error instanceof Error ? error.message : "Could not load your schedule.");
     } finally {
       setIsLoading(false);
     }
-  }, [curriculumId, hasSyllabus]);
+  }, [curriculumId, hasSyllabus, onAssignmentsChange]);
 
   useEffect(() => {
     if (!curriculumId || !hasSyllabus) {
@@ -256,7 +266,7 @@ export function ScheduleCard({
       }
 
       const { from: weekStart, to: weekEnd } = weekRangeFrom();
-      const { from: fetchFrom, to: fetchTo } = scheduleFetchRange();
+      const { from: fetchFrom, to: fetchTo } = fullScheduleFetchRange();
 
       setIsLoading(true);
       setLoadError(null);
@@ -272,6 +282,8 @@ export function ScheduleCard({
           (row) => row.scheduled_date >= weekStart && row.scheduled_date <= weekEnd,
         );
         setAssignments(weekRows);
+        allAssignmentsRef.current = rows;
+        onAssignmentsChange?.(rows);
 
         const summary = summarizeMissedSchedule(rows, weekStart);
         if (summary && !isReslidePromptDismissed(curriculumId, weekStart)) {
@@ -284,6 +296,8 @@ export function ScheduleCard({
       } catch (error) {
         if (!cancelled) {
           setAssignments([]);
+          allAssignmentsRef.current = [];
+          onAssignmentsChange?.([]);
           setLoadError(error instanceof Error ? error.message : "Could not load your schedule.");
         }
       } finally {
@@ -296,7 +310,7 @@ export function ScheduleCard({
     return () => {
       cancelled = true;
     };
-  }, [curriculumId, hasSyllabus, scheduleRefreshKey]);
+  }, [curriculumId, hasSyllabus, scheduleRefreshKey, onAssignmentsChange]);
 
   async function handlePlantSchedule() {
     if (!curriculumId) {
@@ -379,23 +393,42 @@ export function ScheduleCard({
     const nextStatus: ScheduleAssignmentStatus = assignment.status === "done" ? "planned" : "done";
     const previous = assignment;
 
-    setTogglingId(assignment.id);
-    setAssignments((prev) =>
-      prev.map((row) =>
+    const applyStatusUpdate = (rows: ScheduleAssignment[]) =>
+      rows.map((row) =>
         row.id === assignment.id
-          ? { ...row, status: nextStatus, completed_at: nextStatus === "done" ? new Date().toISOString() : null }
+          ? {
+              ...row,
+              status: nextStatus,
+              completed_at: nextStatus === "done" ? new Date().toISOString() : null,
+            }
           : row,
-      ),
-    );
+      );
+
+    setTogglingId(assignment.id);
+    setAssignments((prev) => applyStatusUpdate(prev));
+
+    const optimisticAll = applyStatusUpdate(allAssignmentsRef.current);
+    allAssignmentsRef.current = optimisticAll;
+    onAssignmentsChange?.(optimisticAll);
 
     try {
       const updated = await updateScheduleAssignment(assignment.id, token, { status: nextStatus });
       setAssignments((prev) =>
         prev.map((row) => (row.id === updated.id ? mergeAssignment(row, updated) : row)),
       );
+      const syncedAll = allAssignmentsRef.current.map((row) =>
+        row.id === updated.id ? mergeAssignment(row, updated) : row,
+      );
+      allAssignmentsRef.current = syncedAll;
+      onAssignmentsChange?.(syncedAll);
       onScheduleUpdated?.();
     } catch (error) {
       setAssignments((prev) => prev.map((row) => (row.id === previous.id ? previous : row)));
+      const revertedAll = allAssignmentsRef.current.map((row) =>
+        row.id === previous.id ? previous : row,
+      );
+      allAssignmentsRef.current = revertedAll;
+      onAssignmentsChange?.(revertedAll);
       setLoadError(error instanceof Error ? error.message : "Could not update this assignment.");
     } finally {
       setTogglingId(null);
@@ -410,7 +443,7 @@ export function ScheduleCard({
 
   return (
     <section className="schedule-card">
-      <h2 className="utility-heading">This Week</h2>
+      <PanelHeading icon={Calendar}>This Week</PanelHeading>
       <p className="schedule-card-lead">Your gentle daily rhythm — one step at a time.</p>
 
       {!hasSyllabus && (

@@ -7,7 +7,7 @@ type EnrichResponse = {
   enrichment?: { ok: boolean; error?: string };
 };
 
-function resolveGapSuggestionUrl(suggestion: GapSuggestion): string {
+export function resolveGapSuggestionUrl(suggestion: GapSuggestion): string {
   const candidate = (suggestion.suggested_search_query ?? suggestion.title).trim();
   if (/^https?:\/\//i.test(candidate)) {
     return candidate;

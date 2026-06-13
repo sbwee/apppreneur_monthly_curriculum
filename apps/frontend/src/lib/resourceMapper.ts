@@ -77,6 +77,7 @@ export function mapApiResource(resource: ApiResource): WorkspaceResource {
     type: kindToDisplayType(resource.kind),
     title: resourceTitle(resource),
     description: resourceDescription(resource),
+    url: resource.url,
   };
 }
 

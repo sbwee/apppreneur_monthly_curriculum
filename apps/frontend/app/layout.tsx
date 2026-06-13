@@ -13,8 +13,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Learning Ledger",
-  description: "Adaptive learning workspace and portfolio builder.",
+  title: "Curio",
+  description:
+    "Turn saved resources into structured monthly curriculums. Curio is your adaptive learning workspace and proof-of-work portfolio.",
 };
 
 export default function RootLayout({

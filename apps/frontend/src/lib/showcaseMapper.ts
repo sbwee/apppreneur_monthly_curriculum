@@ -151,7 +151,7 @@ export function mapShowcasePayload(payload: ShowcasePayload): MappedShowcase {
     title: payload.curriculum.title,
     overview:
       payload.syllabus?.overview?.trim() ||
-      "A structured learning journey curated in Learning Ledger.",
+      "A structured learning journey curated in Curio.",
     publishedLabel: formatPublishedDate(payload.published_at),
     monthStart: payload.curriculum.month_start,
     totalItems: sortedItems.length,

@@ -38,7 +38,7 @@ export function ShowcasePage({ data, slug }: ShowcasePageProps) {
   return (
     <main className="showcase-shell">
       <header className="showcase-hero">
-        <p className="showcase-eyebrow">Learning Ledger · Proof of Work</p>
+        <p className="showcase-eyebrow">Curio · Proof of Work</p>
         <h1 className="showcase-title">{data.title}</h1>
         <p className="showcase-overview">{data.overview}</p>
         <div className="showcase-hero-meta">
@@ -100,7 +100,7 @@ export function ShowcasePage({ data, slug }: ShowcasePageProps) {
 
       <footer className="showcase-footer">
         <p className="showcase-footer-copy">
-          Shared from <span className="brand-mark">Learning Ledger</span> · /showcase/{slug}
+          Shared from <span className="brand-mark">Curio</span> · /showcase/{slug}
         </p>
         <AppFooter />
       </footer>

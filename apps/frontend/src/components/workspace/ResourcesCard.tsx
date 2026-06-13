@@ -6,6 +6,8 @@ import { getAccessToken } from "@/src/lib/auth";
 import { createAndEnrichResource, mapApiResource } from "@/src/lib/resourceApi";
 import type { ApiResource } from "@/src/lib/resourceMapper";
 import type { WorkspaceResource } from "@/src/data/mockWorkspace";
+import { ExternalLink, Leaf } from "lucide-react";
+import { PanelHeading, workspaceLinkIconClass } from "@/src/components/ui/workspaceIcons";
 import { ResourceDropzone } from "@/src/components/workspace/ResourceDropzone";
 import { GenerateStructureButton } from "@/src/components/workspace/GenerateStructureButton";
 import {
@@ -111,7 +113,7 @@ export function ResourcesCard({
 
   return (
     <section className="resources-card">
-      <h2 className="utility-heading">Resources</h2>
+      <PanelHeading icon={Leaf}>Resources</PanelHeading>
 
       <ResourceDropzone
         disabled={!curriculumId}
@@ -143,7 +145,21 @@ export function ResourcesCard({
                 {resource.type}
               </p>
             </div>
-            <h3 className="mt-2 text-lg font-semibold text-[#2C3C33]">{resource.title}</h3>
+            <h3 className="mt-2 text-lg font-semibold text-[#2C3C33]">
+              {resource.url ? (
+                <a
+                  href={resource.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="resource-source-link resource-item-title inline-flex items-center gap-1.5"
+                >
+                  {resource.title}
+                  <ExternalLink className={workspaceLinkIconClass} aria-hidden="true" />
+                </a>
+              ) : (
+                resource.title
+              )}
+            </h3>
             <p className="mt-1 text-sm text-[var(--color-ink-muted)]">{resource.description}</p>
           </article>
         ))}

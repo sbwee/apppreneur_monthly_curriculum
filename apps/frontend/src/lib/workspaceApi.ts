@@ -67,6 +67,7 @@ export type SectionDetail = {
   resourceTitle: string | null;
   resourceType: string | null;
   resourceDescription: string | null;
+  resourceUrl: string | null;
 };
 
 /** @deprecated use SectionDetail */
@@ -205,6 +206,7 @@ function mapSectionDetail(
     resourceTitle: mapped?.title ?? (resource ? resourceTitle(resource) : null),
     resourceType: mapped?.type ?? null,
     resourceDescription: mapped?.description ?? (resource ? resourceDescription(resource) : null),
+    resourceUrl: resource?.url ?? null,
   };
 }
 

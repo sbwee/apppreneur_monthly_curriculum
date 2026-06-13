@@ -220,6 +220,34 @@ export type ScheduleCompletion = {
   total: number;
 };
 
+function assignmentQueueOrder(a: ScheduleAssignment, b: ScheduleAssignment): number {
+  const dateCmp = a.scheduled_date.localeCompare(b.scheduled_date);
+  if (dateCmp !== 0) {
+    return dateCmp;
+  }
+  return a.position - b.position;
+}
+
+function isAssignmentIncomplete(assignment: ScheduleAssignment): boolean {
+  return assignment.status === "planned" || assignment.status === "deferred";
+}
+
+/** First incomplete assignment in syllabus queue order (date, then position). */
+export function findFirstIncompleteAssignment(
+  assignments: ScheduleAssignment[],
+): ScheduleAssignment | null {
+  const incomplete = assignments.filter(isAssignmentIncomplete).sort(assignmentQueueOrder);
+  return incomplete[0] ?? null;
+}
+
+/** True when every assignment is done or skipped. */
+export function isScheduleFullyComplete(assignments: ScheduleAssignment[]): boolean {
+  return (
+    assignments.length > 0 &&
+    assignments.every((assignment) => assignment.status === "done" || assignment.status === "skipped")
+  );
+}
+
 /** Completion % from schedule rows: done / total assignments. */
 export function computeScheduleCompletion(assignments: ScheduleAssignment[]): ScheduleCompletion {
   const total = assignments.length;

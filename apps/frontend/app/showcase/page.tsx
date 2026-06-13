@@ -4,7 +4,7 @@ export default function ShowcaseIndexPage() {
   return (
     <main className="showcase-shell showcase-not-found">
       <div className="showcase-not-found-card">
-        <p className="showcase-eyebrow">Learning Ledger · Proof of Work</p>
+        <p className="showcase-eyebrow">Curio · Proof of Work</p>
         <h1 className="showcase-title">Your public showcase</h1>
         <p className="showcase-overview">
           Publish a curriculum from Workspace to grow a shareable portfolio page — syllabus arc,

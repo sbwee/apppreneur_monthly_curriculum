@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Header } from "@/src/components/home/Header";
 import { Sidebar, type CurriculumLifecycleAction } from "@/src/components/home/Sidebar";
 import { CreateCurriculumPanel } from "@/src/components/workspace/CreateCurriculumPanel";
@@ -10,7 +10,12 @@ import { UtilityPanel } from "@/src/components/workspace/UtilityPanel";
 import { WorkspaceMainPanel } from "@/src/components/workspace/WorkspaceMainPanel";
 import { getAccessToken } from "@/src/lib/auth";
 import type { CurriculumPath } from "@/src/data/mockWorkspace";
-import { bootstrapScheduleAfterSyllabus } from "@/src/lib/scheduleApi";
+import {
+  bootstrapScheduleAfterSyllabus,
+  findFirstIncompleteAssignment,
+  isScheduleFullyComplete,
+  type ScheduleAssignment,
+} from "@/src/lib/scheduleApi";
 import {
   fetchCurriculumDetail,
   fetchCurriculumList,
@@ -31,9 +36,79 @@ export function WorkspacePage() {
   const [isGeneratingStructure, setIsGeneratingStructure] = useState(false);
   const [showCreatePanel, setShowCreatePanel] = useState(false);
   const [selectedSectionId, setSelectedSectionId] = useState<string | null>(null);
+  const [allCaughtUp, setAllCaughtUp] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [generateError, setGenerateError] = useState<string | null>(null);
   const [scheduleRefreshKey, setScheduleRefreshKey] = useState(0);
+  const scheduleAssignmentsRef = useRef<ScheduleAssignment[]>([]);
+  const selectedSectionIdRef = useRef<string | null>(null);
+  const userPickedSectionRef = useRef(false);
+
+  useEffect(() => {
+    selectedSectionIdRef.current = selectedSectionId;
+  }, [selectedSectionId]);
+
+  const handleAssignmentsChange = useCallback((assignments: ScheduleAssignment[]) => {
+    const previous = scheduleAssignmentsRef.current;
+    scheduleAssignmentsRef.current = assignments;
+
+    if (assignments.length === 0) {
+      setAllCaughtUp(false);
+      return;
+    }
+
+    if (isScheduleFullyComplete(assignments)) {
+      setAllCaughtUp(true);
+      setSelectedSectionId(null);
+      userPickedSectionRef.current = false;
+      return;
+    }
+
+    setAllCaughtUp(false);
+    const nextIncomplete = findFirstIncompleteAssignment(assignments);
+    const activeSectionId = selectedSectionIdRef.current;
+
+    if (!userPickedSectionRef.current) {
+      if (nextIncomplete) {
+        setSelectedSectionId(nextIncomplete.curriculum_item_id);
+      }
+      return;
+    }
+
+    if (!activeSectionId || !nextIncomplete) {
+      return;
+    }
+
+    const wasActiveIncomplete = previous.some(
+      (assignment) =>
+        assignment.curriculum_item_id === activeSectionId &&
+        assignment.status !== "done" &&
+        assignment.status !== "skipped",
+    );
+    const isActiveNowDone = assignments.some(
+      (assignment) =>
+        assignment.curriculum_item_id === activeSectionId &&
+        (assignment.status === "done" || assignment.status === "skipped"),
+    );
+
+    if (wasActiveIncomplete && isActiveNowDone) {
+      setSelectedSectionId(nextIncomplete.curriculum_item_id);
+      userPickedSectionRef.current = false;
+    }
+  }, []);
+
+  function handleSectionSelect(sectionId: string) {
+    userPickedSectionRef.current = true;
+    setAllCaughtUp(false);
+    setSelectedSectionId(sectionId);
+  }
+
+  function resetArticleQueueState() {
+    userPickedSectionRef.current = false;
+    scheduleAssignmentsRef.current = [];
+    setAllCaughtUp(false);
+    setSelectedSectionId(null);
+  }
 
   const refreshCurriculumList = useCallback(async () => {
     const token = getAccessToken();
@@ -221,7 +296,7 @@ export function WorkspacePage() {
 
   function handleCurriculumSelect(curriculumId: string) {
     setShowCreatePanel(false);
-    setSelectedSectionId(null);
+    resetArticleQueueState();
     setSelectedCurriculumId(curriculumId);
   }
 
@@ -303,6 +378,9 @@ export function WorkspacePage() {
     loadedCurriculum?.id === selectedCurriculumId ? loadedCurriculum : null;
 
   const activeSectionId = useMemo(() => {
+    if (allCaughtUp) {
+      return null;
+    }
     const sections = effectiveLoadedCurriculum?.sections ?? [];
     if (!sections.length) {
       return null;
@@ -311,7 +389,7 @@ export function WorkspacePage() {
       return selectedSectionId;
     }
     return sections[0]?.id ?? null;
-  }, [effectiveLoadedCurriculum?.sections, selectedSectionId]);
+  }, [effectiveLoadedCurriculum?.sections, selectedSectionId, allCaughtUp]);
 
   const activeSection =
     effectiveLoadedCurriculum?.sections.find((section) => section.id === activeSectionId) ??
@@ -342,21 +420,21 @@ export function WorkspacePage() {
       <section className="workspace-main">
         <Header />
         {loadError && (
-          <p className="mt-4 text-base text-[#9A504A]" role="alert">
+          <p className="mt-6 text-base text-[#9A504A]" role="alert">
             {loadError}
           </p>
         )}
         {generateError && (
-          <p className="mt-4 text-base text-[#9A504A]" role="alert">
+          <p className="mt-6 text-base text-[#9A504A]" role="alert">
             {generateError}
           </p>
         )}
         {isLoadingList && !loadError && (
-          <p className="mt-4 text-base text-[var(--color-ink-muted)]">Loading your curriculums…</p>
+          <p className="mt-6 text-base text-[var(--color-ink-muted)]">Loading your curriculums…</p>
         )}
 
         {(showInitialCreatePanel || showInlineCreatePanel) && (
-          <div className="mt-8">
+          <div className="mt-10">
             <CreateCurriculumPanel onCreated={handleCurriculumCreated} />
           </div>
         )}
@@ -382,6 +460,7 @@ export function WorkspacePage() {
                 section={activeSection}
                 hasSyllabus={effectiveLoadedCurriculum.hasSyllabus}
                 isLoading={isLoadingDetail}
+                allCaughtUp={allCaughtUp}
                 onNoteChange={handleNoteChange}
                 onNoteMetaChange={handleNoteMetaChange}
               />
@@ -405,14 +484,15 @@ export function WorkspacePage() {
               scheduleRefreshKey={scheduleRefreshKey}
               sections={effectiveLoadedCurriculum.sections}
               selectedSectionId={activeSectionId}
-              onSectionSelect={setSelectedSectionId}
+              onSectionSelect={handleSectionSelect}
+              onAssignmentsChange={handleAssignmentsChange}
               onSprintDaysUpdated={handleSprintDaysUpdated}
             />
           </div>
         )}
 
         {!hasActiveCurriculum && !showInitialCreatePanel && !showInlineCreatePanel && !isLoadingList && curriculumPaths.length > 0 && (
-          <p className="mt-8 text-base text-[var(--color-ink-muted)]">
+          <p className="mt-10 text-base text-[var(--color-ink-muted)]">
             {isLoadingDetail
               ? "Loading curriculum details…"
               : "Please select or create a curriculum to view details."}

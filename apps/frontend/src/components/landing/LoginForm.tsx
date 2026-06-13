@@ -2,6 +2,7 @@
 
 import { FormEvent, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { Sprout } from "lucide-react";
 import { apiFetch } from "@/src/lib/api";
 import { setAccessToken } from "@/src/lib/auth";
 import {
@@ -13,6 +14,9 @@ import {
 } from "@/src/lib/authFlows";
 
 type FeedbackState = "idle" | "invalid" | "success" | "config" | "info";
+
+const DEMO_EMAIL = "demo@curio.space";
+const DEMO_PASSWORD = "curio1234";
 
 function resolveDestination(nextPath: string | null): string {
   if (
@@ -35,6 +39,7 @@ export function LoginForm() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [signInSource, setSignInSource] = useState<"form" | "demo" | null>(null);
   const [feedbackState, setFeedbackState] = useState<FeedbackState>("idle");
   const [errorDetail, setErrorDetail] = useState<string | null>(null);
 
@@ -50,7 +55,7 @@ export function LoginForm() {
 
   const subheading = useMemo(() => {
     if (mode === "sign-up") {
-      return "Create an account to start building your adaptive learning ledger.";
+      return "Create an account to start building with Curio.";
     }
     if (mode === "forgot-password") {
       return "Enter your email and we will send a link to reset your password.";
@@ -109,6 +114,38 @@ export function LoginForm() {
     router.push(resolveDestination(searchParams.get("next")));
   }
 
+  async function runSignIn(
+    signInEmail: string,
+    signInPassword: string,
+    source: "form" | "demo" = "form",
+  ) {
+    setIsSubmitting(true);
+    setSignInSource(source);
+    setFeedbackState("idle");
+    setErrorDetail(null);
+
+    if (!isSupabaseConfigured()) {
+      setFeedbackState("config");
+      setIsSubmitting(false);
+      setSignInSource(null);
+      return;
+    }
+
+    try {
+      const session = await signInWithPassword(signInEmail, signInPassword);
+      await completeSignIn(session.access_token);
+    } catch (error) {
+      setErrorDetail(error instanceof Error ? error.message : "Request failed.");
+      setFeedbackState("invalid");
+      setIsSubmitting(false);
+      setSignInSource(null);
+    }
+  }
+
+  async function handleDemoSignIn() {
+    await runSignIn(DEMO_EMAIL, DEMO_PASSWORD, "demo");
+  }
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setIsSubmitting(true);
@@ -160,8 +197,8 @@ export function LoginForm() {
         return;
       }
 
-      const session = await signInWithPassword(email, password);
-      await completeSignIn(session.access_token);
+      await runSignIn(email, password);
+      return;
     } catch (error) {
       setErrorDetail(error instanceof Error ? error.message : "Request failed.");
       setFeedbackState("invalid");
@@ -174,7 +211,7 @@ export function LoginForm() {
 
   return (
     <section className="w-full max-w-[430px]">
-      <h1 className="brand-mark text-5xl">Learning Ledger</h1>
+      <h1 className="brand-mark text-5xl">Curio</h1>
 
       <div className="mt-16">
         <h2 className="font-serif text-5xl leading-tight text-[var(--color-brand-forest)]">{heading}</h2>
@@ -268,13 +305,34 @@ export function LoginForm() {
 
         <button type="submit" className="btn-primary" disabled={isSubmitting}>
           {isSubmitting
-            ? mode === "sign-in"
+            ? mode === "sign-in" && signInSource !== "demo"
               ? "Signing In…"
               : mode === "sign-up"
                 ? "Creating Account…"
-                : "Sending…"
+                : mode === "forgot-password"
+                  ? "Sending…"
+                  : submitLabel
             : submitLabel}
         </button>
+
+        {mode === "sign-in" && (
+          <>
+            <div className="auth-demo-divider" aria-hidden="true">
+              <span>or</span>
+            </div>
+            <button
+              type="button"
+              className="btn-secondary auth-demo-btn"
+              onClick={handleDemoSignIn}
+              disabled={isSubmitting}
+            >
+              <Sprout className="auth-demo-icon" aria-hidden="true" />
+              {isSubmitting && signInSource === "demo"
+                ? "Entering demo garden…"
+                : "Sign In as Guest / Demo"}
+            </button>
+          </>
+        )}
 
         <div className="auth-mode-switch">
           {mode === "sign-in" ? (

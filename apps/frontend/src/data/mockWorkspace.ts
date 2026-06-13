@@ -19,4 +19,5 @@ export type WorkspaceResource = {
   type: "PDF" | "Video" | "Article";
   title: string;
   description: string;
+  url: string;
 };

@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { ExternalLink } from "lucide-react";
+import { workspaceLinkIconClass } from "@/src/components/ui/workspaceIcons";
 import { InlineNoteEditor } from "@/src/components/workspace/InlineNoteEditor";
 import { getAccessToken } from "@/src/lib/auth";
 import { updatePublishSettings, type SectionDetail } from "@/src/lib/workspaceApi";
@@ -16,6 +18,7 @@ type NoteEditorProps = {
   section?: SectionDetail | null;
   hasSyllabus?: boolean;
   isLoading?: boolean;
+  allCaughtUp?: boolean;
   onNoteChange: (note: WorkspaceNote) => void;
   onNoteMetaChange: (meta: { noteId: string | null; publicSlug: string | null }) => void;
 };
@@ -30,6 +33,7 @@ export function NoteEditor({
   section,
   hasSyllabus,
   isLoading,
+  allCaughtUp = false,
   onNoteChange,
   onNoteMetaChange,
 }: NoteEditorProps) {
@@ -78,35 +82,52 @@ export function NoteEditor({
     onNoteMetaChange({ noteId: meta.noteId, publicSlug });
   }
 
+  if (allCaughtUp) {
+    return (
+      <section className="workspace-note-section workspace-all-caught-up" aria-live="polite">
+        <div className="workspace-caught-up-card">
+          <p className="workspace-caught-up-eyebrow">Current article</p>
+          <h1 className="workspace-caught-up-title">All caught up! 🎉</h1>
+          <p className="workspace-caught-up-copy">
+            You&apos;ve completed every item in your syllabus queue. Take a breather, revisit a
+            section from the sidebar, or add new resources to keep growing.
+          </p>
+        </div>
+      </section>
+    );
+  }
+
   return (
-    <section>
-      <div className="workspace-note-top">
-        <h1 className="workspace-note-title">{displayTitle}</h1>
-        <button
-          type="button"
-          className="visibility-toggle"
-          aria-label="Toggle public visibility"
-          onClick={handleToggleVisibility}
-          disabled={isTogglingVisibility || isLoading}
-        >
-          <span>{note.visibility}</span>
-          <span className="visibility-knob" />
-        </button>
-      </div>
-
-      {visibilityError && (
-        <p className="mt-2 text-sm text-[#9A504A]" role="alert">
-          {visibilityError}
-        </p>
-      )}
-
-      <div className="workspace-tags">
-        {note.tags.map((tag) => (
-          <button type="button" className="workspace-tag" key={tag}>
-            {tag}
+    <section className="workspace-note-section">
+      <header className="workspace-note-header">
+        <div className="workspace-note-top">
+          <h1 className="workspace-note-title">{displayTitle}</h1>
+          <button
+            type="button"
+            className="visibility-toggle"
+            aria-label="Toggle public visibility"
+            onClick={handleToggleVisibility}
+            disabled={isTogglingVisibility || isLoading}
+          >
+            <span>{note.visibility}</span>
+            <span className="visibility-knob" />
           </button>
-        ))}
-      </div>
+        </div>
+
+        {visibilityError && (
+          <p className="text-sm text-[#9A504A]" role="alert">
+            {visibilityError}
+          </p>
+        )}
+
+        <div className="workspace-tags">
+          {note.tags.map((tag) => (
+            <button type="button" className="workspace-tag" key={tag}>
+              {tag}
+            </button>
+          ))}
+        </div>
+      </header>
 
       <article className="workspace-editor">
         <p className="workspace-lead">{displayLead}</p>
@@ -136,7 +157,21 @@ export function NoteEditor({
             <p className="text-sm uppercase tracking-[0.12em] text-[var(--color-ink-muted)]">
               Mapped resource · {section.resourceType}
             </p>
-            <h3 className="mt-2 text-xl font-semibold text-[#2C3C33]">{section.resourceTitle}</h3>
+            <h3 className="mt-2 text-xl font-semibold text-[#2C3C33]">
+              {section.resourceUrl ? (
+                <a
+                  href={section.resourceUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="resource-source-link section-resource-title-link inline-flex items-center gap-1.5"
+                >
+                  {section.resourceTitle}
+                  <ExternalLink className={workspaceLinkIconClass} aria-hidden="true" />
+                </a>
+              ) : (
+                section.resourceTitle
+              )}
+            </h3>
             {section.resourceDescription && (
               <p className="mt-2 text-sm text-[var(--color-ink-muted)]">{section.resourceDescription}</p>
             )}

@@ -3,7 +3,7 @@ const footerLinks = ["Privacy Policy", "Terms of Service", "Help Center"];
 export function AppFooter() {
   return (
     <footer className="landing-footer">
-      <p>© 2026 Learning Ledger. Cultivate your curiosity.</p>
+      <p>© 2026 Curio. Cultivate your curiosity.</p>
       <nav aria-label="Footer">
         <ul className="flex flex-wrap items-center gap-6">
           {footerLinks.map((item) => (

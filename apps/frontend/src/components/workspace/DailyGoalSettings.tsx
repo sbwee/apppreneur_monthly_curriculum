@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { getAccessToken } from "@/src/lib/auth";
+import { Sparkles } from "lucide-react";
+import { PanelHeading } from "@/src/components/ui/workspaceIcons";
 import {
   DAILY_GOAL_PRESETS,
   fetchProfile,
@@ -75,7 +77,7 @@ export function DailyGoalSettings() {
 
   return (
     <section className="daily-goal-card">
-      <h2 className="utility-heading">Daily rhythm</h2>
+      <PanelHeading icon={Sparkles}>Daily rhythm</PanelHeading>
       <p className="daily-goal-lead">
         {isLoading
           ? "Loading your learning pace…"

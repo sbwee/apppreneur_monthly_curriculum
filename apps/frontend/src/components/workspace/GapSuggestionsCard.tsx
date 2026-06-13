@@ -2,7 +2,13 @@
 
 import { useMemo, useState } from "react";
 import { getAccessToken } from "@/src/lib/auth";
-import { createResourceFromGapSuggestion, mapApiResource } from "@/src/lib/resourceApi";
+import { ExternalLink, Network } from "lucide-react";
+import { PanelHeading, workspaceLinkIconClass } from "@/src/components/ui/workspaceIcons";
+import {
+  createResourceFromGapSuggestion,
+  mapApiResource,
+  resolveGapSuggestionUrl,
+} from "@/src/lib/resourceApi";
 import type { GapSuggestion } from "@/src/lib/workspaceApi";
 
 type GapSuggestionsCardProps = {
@@ -70,7 +76,7 @@ export function GapSuggestionsCard({
 
   return (
     <section className="gap-suggestions-card">
-      <h2 className="utility-heading">AI suggestions</h2>
+      <PanelHeading icon={Network}>AI suggestions</PanelHeading>
       <p className="gap-suggestions-lead">
         The architect spotted a few complementary paths to deepen your curriculum.
       </p>
@@ -83,7 +89,17 @@ export function GapSuggestionsCard({
           return (
             <article key={key} className="gap-suggestion-item">
               <p className="gap-suggestion-eyebrow">Recommended fill-in</p>
-              <h3 className="gap-suggestion-title">{suggestion.title}</h3>
+              <h3 className="gap-suggestion-title">
+                <a
+                  href={resolveGapSuggestionUrl(suggestion)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="resource-source-link gap-suggestion-title-link inline-flex items-center gap-1.5"
+                >
+                  {suggestion.title}
+                  <ExternalLink className={workspaceLinkIconClass} aria-hidden="true" />
+                </a>
+              </h3>
               <p className="gap-suggestion-rationale">{suggestion.rationale}</p>
               <p className="gap-suggestion-query">
                 Search lead: <span>{suggestion.suggested_search_query ?? suggestion.title}</span>

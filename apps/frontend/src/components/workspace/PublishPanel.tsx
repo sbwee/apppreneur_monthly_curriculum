@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { Share2 } from "lucide-react";
+import { PanelHeading } from "@/src/components/ui/workspaceIcons";
 import { getAccessToken } from "@/src/lib/auth";
 import {
   fetchPublishSettings,
@@ -19,7 +21,7 @@ type PublishPanelProps = {
 
 function defaultSlugFromTitle(title: string): string {
   const slug = slugifyCurriculumTitle(title);
-  return slug.length >= 3 ? slug : "my-learning-ledger";
+  return slug.length >= 3 ? slug : "my-curio-space";
 }
 
 export function PublishPanel({ curriculumId, curriculumTitle = "", onPublishChange }: PublishPanelProps) {
@@ -157,7 +159,7 @@ export function PublishPanel({ curriculumId, curriculumTitle = "", onPublishChan
 
   return (
     <section className="publish-panel">
-      <h2 className="utility-heading">Share</h2>
+      <PanelHeading icon={Share2}>Share</PanelHeading>
       <p className="publish-panel-lead">Private by default. Publish when you&apos;re ready to share your progress.</p>
 
       {isLoading && <p className="publish-panel-muted">Loading sharing settings…</p>}
@@ -174,7 +176,7 @@ export function PublishPanel({ curriculumId, curriculumTitle = "", onPublishChan
             <div>
               <p className="publish-toggle-label">Showcase visibility</p>
               <p className="publish-toggle-hint">
-                {displayIsPublished ? "Your ledger is live." : "Only you can see this curriculum."}
+                {displayIsPublished ? "Your Curio space is live." : "Only you can see this curriculum."}
               </p>
             </div>
             <button
@@ -206,7 +208,7 @@ export function PublishPanel({ curriculumId, curriculumTitle = "", onPublishChan
                 disabled={isSaving || !curriculumId}
                 onChange={(event) => setSlugDraft(event.target.value)}
                 onBlur={() => void handleSlugBlur()}
-                placeholder="my-learning-path"
+                placeholder="my-curio-space"
                 autoComplete="off"
                 spellCheck={false}
               />

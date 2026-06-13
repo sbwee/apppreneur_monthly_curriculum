@@ -1,5 +1,7 @@
 "use client";
 
+import { Layers } from "lucide-react";
+import { PanelHeading } from "@/src/components/ui/workspaceIcons";
 import type { SectionDetail } from "@/src/lib/workspaceApi";
 
 type SectionsCardProps = {
@@ -15,7 +17,7 @@ export function SectionsCard({
 }: SectionsCardProps) {
   return (
     <section className="sections-card">
-      <h2 className="utility-heading">Sections</h2>
+      <PanelHeading icon={Layers}>Sections</PanelHeading>
       {sections.length === 0 ? (
         <p className="mt-3 text-sm text-[var(--color-ink-muted)]">
           Sections appear once a syllabus is generated for this curriculum.

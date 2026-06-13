@@ -1,5 +1,8 @@
 "use client";
 
+import { Calendar } from "lucide-react";
+import { workspaceIconSmClass } from "@/src/components/ui/workspaceIcons";
+
 export const DEFAULT_SPRINT_DAYS = 30;
 export const MIN_SPRINT_DAYS = 7;
 export const MAX_SPRINT_DAYS = 90;
@@ -41,7 +44,8 @@ export function SprintDurationControl({
   return (
     <div className={`sprint-duration-control ${compact ? "sprint-duration-control-compact" : ""}`}>
       <div className="sprint-duration-header">
-        <label htmlFor="sprint-duration-input" className="sprint-duration-label">
+        <label htmlFor="sprint-duration-input" className="sprint-duration-label flex items-center gap-2">
+          <Calendar className={workspaceIconSmClass} aria-hidden="true" />
           Learning sprint days
         </label>
         {!compact && (

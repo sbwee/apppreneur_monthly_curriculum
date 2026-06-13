@@ -1,6 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import {
+  growthStageIcon,
+  workspaceIconSmClass,
+} from "@/src/components/ui/workspaceIcons";
+import {
+  BotanicalGrowthIcon,
+  getBotanicalGrowthStage,
+} from "@/src/components/workspace/BotanicalGrowthIcon";
 import { getAccessToken } from "@/src/lib/auth";
 import { fetchCurriculumScheduleCompletion } from "@/src/lib/scheduleApi";
 
@@ -10,17 +18,6 @@ type WorkspaceProgressCardProps = {
   hasSyllabus?: boolean;
   refreshKey?: number;
 };
-
-const RING_TRACK = "#ece9e3";
-const RING_FILL = "#446d5d";
-
-function ringBackground(percent: number): string {
-  const clamped = Math.max(0, Math.min(100, percent));
-  if (clamped <= 0) {
-    return RING_TRACK;
-  }
-  return `conic-gradient(${RING_FILL} 0 ${clamped}%, ${RING_TRACK} ${clamped}% 100%)`;
-}
 
 export function WorkspaceProgressCard({
   curriculumId,
@@ -71,6 +68,8 @@ export function WorkspaceProgressCard({
 
   const hasSchedule = hasSyllabus && completion.total > 0;
   const percent = hasSchedule ? completion.percent : 0;
+  const { stage, label: growthLabel } = getBotanicalGrowthStage(percent);
+  const GrowthIcon = growthStageIcon(stage);
 
   const caption = hasSchedule
     ? `${completion.done} of ${completion.total} assignments complete`
@@ -80,8 +79,19 @@ export function WorkspaceProgressCard({
 
   return (
     <section className="workspace-progress-card" aria-label="Curriculum progress">
-      <div className="workspace-progress-ring" style={{ background: ringBackground(percent) }}>
-        <div className="workspace-progress-ring-inner">
+      <div
+        className="workspace-progress-growth"
+        role="img"
+        aria-label={`${growthLabel}, ${percent}% complete`}
+      >
+        <div className="workspace-progress-botanical">
+          <BotanicalGrowthIcon stage={stage} />
+        </div>
+        <div className="workspace-progress-metrics">
+          <p className="workspace-progress-stage-label flex items-center justify-center gap-1.5">
+            <GrowthIcon className={workspaceIconSmClass} aria-hidden="true" />
+            {growthLabel}
+          </p>
           <p className="workspace-progress-value">{percent}%</p>
           <p className="workspace-progress-label">Complete</p>
         </div>

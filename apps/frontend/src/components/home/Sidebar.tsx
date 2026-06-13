@@ -3,6 +3,15 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import {
+  Home,
+  MoreHorizontal,
+  Plus,
+  Sprout,
+  Trees,
+  type LucideIcon,
+} from "lucide-react";
+import { workspaceIconSmClass } from "@/src/components/ui/workspaceIcons";
 import { sidebarItems } from "@/src/data/mockHome";
 import { CurriculumPath } from "@/src/data/mockWorkspace";
 import { logout, getAccessToken } from "@/src/lib/auth";
@@ -26,6 +35,12 @@ function profileInitial(name: string): string {
   const trimmed = name.trim();
   return trimmed ? trimmed.charAt(0).toUpperCase() : "L";
 }
+
+const SIDEBAR_NAV_ICONS: Record<string, LucideIcon> = {
+  Home,
+  Workspace: Sprout,
+  Showcase: Trees,
+};
 
 function statusLabel(status: CurriculumPath["status"]): string | null {
   if (status === "active") {
@@ -138,24 +153,29 @@ export function Sidebar({
   return (
     <aside className="home-sidebar">
       <div>
-        <h2 className="brand-mark text-4xl leading-[1.05]">Learning Ledger</h2>
+        <h2 className="brand-mark flex items-center gap-2 text-4xl leading-[1.05]">
+          <Sprout className="h-7 w-7 shrink-0 text-emerald-800" aria-hidden="true" />
+          Curio
+        </h2>
         <p className="mt-1 text-xs text-[var(--color-ink-muted)]">Nurturing curiosity</p>
 
         <nav className="mt-7" aria-label="Sidebar navigation">
           <ul className="space-y-2">
             {sidebarItems.map((item) => {
               const href = item.label === "Showcase" ? showcaseHref : item.href;
+              const NavIcon = SIDEBAR_NAV_ICONS[item.label];
 
               return (
                 <li key={item.label}>
                   <Link
                     href={href}
-                    className={`sidebar-link ${
+                    className={`sidebar-link flex items-center gap-2.5 ${
                       item.href === activeHref || (item.isActive && !activeHref)
                         ? "sidebar-link-active"
                         : ""
                     }`}
                   >
+                    {NavIcon && <NavIcon className={workspaceIconSmClass} aria-hidden="true" />}
                     {item.label}
                   </Link>
                 </li>
@@ -169,8 +189,13 @@ export function Sidebar({
             <div className="curriculum-menu-header">
               <p className="curriculum-menu-title">My Curriculums</p>
               {onAddCurriculum && (
-                <button type="button" className="curriculum-add-path" onClick={onAddCurriculum}>
-                  + Add Path
+                <button
+                  type="button"
+                  className="curriculum-add-path inline-flex items-center gap-1"
+                  onClick={onAddCurriculum}
+                >
+                  <Plus className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                  Add Path
                 </button>
               )}
             </div>
@@ -206,7 +231,7 @@ export function Sidebar({
                             setOpenMenuId((prev) => (prev === path.id ? null : path.id));
                           }}
                         >
-                          ⋯
+                          <MoreHorizontal className="h-4 w-4" aria-hidden="true" />
                         </button>
 
                         {openMenuId === path.id && (
